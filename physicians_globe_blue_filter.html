@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Physicians per 1,000 – Blue Globe with Filter (2022)</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #fff;
+    }
+    #container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #overlay {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.55);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      border: 1px solid rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #countrySelect {
+      margin-top: 4px;
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+    }
+    label {
+      font-size: 11px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div id="overlay">
+    <div><strong>Physicians per 1,000 people (2022)</strong></div>
+    <div>Color: light blue (low) → dark blue (high)</div>
+    <div>
+      <label for="countrySelect">Highlight country:</label><br/>
+      <select id="countrySelect">
+        <option value="__all__">All countries</option>
+      </select>
+    </div>
+  </div>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script>
+    var locations = ["AFG","ALB","DZA","AGO","ARG","ARM","AUS","AUT","AZE","BHR","BGD","BRB","BLR","BEL","BEN","BOL","BIH","BWA","BRA","BGR","BFA","BDI","KHM","CMR","CAN","CPV","CAF","TCD","CHL","CHN","COL","COM","COG","CRI","CIV","HRV","CUB","CYP","CZE","COD","DNK","DJI","DMA","DOM","ECU","EGY","SLV","GNQ","EST","ETH","FIN","FRA","GAB","GMB","GEO","DEU","GHA","GRC","GTM","GIN","GNB","HTI","HND","HUN","ISL","IND","IDN","IRN","IRQ","IRL","ISR","ITA","JAM","JPN","JOR","KAZ","KEN","KWT","KGZ","LAO","LVA","LBN","LSO","LBR","LBY","LTU","LUX","MDG","MWI","MYS","MLI","MLT","MRT","MUS","MEX","MDA","MNG","MNE","MAR","MOZ","MMR","NAM","NPL","NLD","NZL","NIC","NER","NGA","PRK","NOR","OMN","PAK","PAN","PRY","PER","PHL","POL","PRT","PRI","QAT","ROU","RUS","RWA","LCA","STP","SAU","SEN","SRB","SYC","SLE","SGP","SVK","SVN","ZAF","KOR","ESP","LKA","SWE","CHE","SYR","TJK","TZA","THA","TGO","TTO","TUN","TUR","TKM","UGA","UKR","ARE","GBR","USA","URY","UZB","VEN","VNM","YEM","ZMB","ZWE"];
+    var zValues = [0.2782,1.1998,1.7193,0.2146,3.9600,4.4023,3.6778,5.1697,3.4460,0.9257,0.5809,2.4843,5.1905,3.0709,0.0791,1.5901,2.1616,0.3688,2.1499,4.0332,0.0847,0.1001,0.1682,0.0881,2.6102,0.7694,0.0629,0.0434,2.5912,1.9798,2.1848,0.2715,0.1159,2.8939,0.2314,2.9962,8.4218,1.9509,4.1208,0.0740,4.0099,0.2203,1.0825,1.5600,2.0368,0.4521,1.5662,0.4000,4.4833,0.0769,3.8080,3.2672,0.6819,0.1021,7.1201,4.2488,0.1359,5.4789,0.3549,0.0788,0.1274,0.2343,0.3089,3.4075,4.0778,0.8571,0.4269,1.5844,0.7079,3.3125,4.6249,3.9774,1.3061,2.4115,2.3237,3.2522,0.1565,2.5789,1.8760,0.3726,3.1905,2.1038,0.0676,0.0373,2.0905,6.3528,3.0090,0.1812,0.0358,1.5132,0.1286,2.8598,0.1865,2.5331,2.3827,3.2066,2.8592,2.7557,0.7273,0.0838,0.6770,0.4182,0.7486,3.6054,3.5898,0.9775,0.0433,0.3806,3.6745,2.9164,2.0031,0.9801,1.5687,1.3544,1.2700,0.6004,2.3788,5.1240,1.7500,2.4852,2.9807,4.0139,0.1340,0.6409,0.0531,2.6117,0.0691,3.1131,0.9458,0.0250,2.2936,3.4156,3.0861,0.9054,2.3608,3.8723,1.0041,3.9840,4.2957,1.2200,1.7003,0.0140,0.8050,0.0774,4.1675,1.3025,1.8492,2.2247,0.1680,2.9923,2.5278,2.8117,2.6120,5.0499,2.3685,1.9240,0.8199,0.3104,1.1867,0.2096];
+    var countryNames = ["Afghanistan","Albania","Algeria","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Benin","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Bulgaria","Burkina Faso","Burundi","Cambodia","Cameroon","Canada","Cape Verde","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo","Costa Rica","Cote d'Ivoire","Croatia","Cuba","Cyprus","Czechia","Democratic Republic of Congo","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Estonia","Ethiopia","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Guatemala","Guinea","Guinea-Bissau","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Mali","Malta","Mauritania","Mauritius","Mexico","Moldova","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","Norway","Oman","Pakistan","Panama","Paraguay","Peru","Philippines","Poland","Portugal","Puerto Rico","Qatar","Romania","Russia","Rwanda","Saint Lucia","Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland","Syria","Tajikistan","Tanzania","Thailand","Togo","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
+
+    var data = [{
+      type: "choropleth",
+      locationmode: "ISO-3",
+      locations: locations,
+      z: zValues,
+      text: countryNames.map((n,i)=> n + "<br>" + zValues[i].toFixed(2) + " physicians / 1,000"),
+      hovertemplate: "%{text}<extra></extra>",
+      colorscale: [
+        [0.0, "rgb(198,233,255)"],
+        [0.5, "rgb(100,149,237)"],
+        [1.0, "rgb(0,0,139)"]
+      ],
+      colorbar: { title: "Physicians per 1,000" },
+      marker: { line: { color: "rgb(220,220,220)", width: 0.4 } }
+    }];
+
+    var layout = {
+      paper_bgcolor: "black",
+      plot_bgcolor: "black",
+      margin: {l:0, r:0, t:0, b:0},
+      geo: {
+        projection: { type: "orthographic", rotation: {lon: 0, lat: 0} },
+        showcountries: true,
+        showland: true,
+        landcolor: "rgb(15,15,40)",
+        oceancolor: "rgb(0,0,50)",
+        showocean: true,
+        lakecolor: "rgb(0,0,50)",
+        bgcolor: "rgba(0,0,0,0)"
+      }
+    };
+
+    Plotly.newPlot("container", data, layout, {displayModeBar: false, responsive: true});
+
+    // Build dropdown options (unique country names, sorted)
+    var selectEl = document.getElementById("countrySelect");
+    var seen = new Set();
+    countryNames.forEach(function(name) {
+      if (!seen.has(name)) {
+        seen.add(name);
+      }
+    });
+    Array.from(seen).sort().forEach(function(name) {
+      var opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      selectEl.appendChild(opt);
+    });
+
+    // When a country is selected, keep only that country's color; others become transparent
+    selectEl.addEventListener("change", function() {
+      var selected = this.value;
+      var newZ;
+      if (selected === "__all__") {
+        newZ = zValues.slice();
+      } else {
+        newZ = zValues.map(function(v, i) {
+          return countryNames[i] === selected ? v : null;
+        });
+      }
+      Plotly.restyle("container", {z: [newZ]});
+    });
+
+    // Auto-rotate, but stop when the user drags/clicks
+    var angle = 0;
+    var rotationTimer = setInterval(function() {
+      angle = (angle + 0.4) % 360;
+      Plotly.relayout("container", {"geo.projection.rotation.lon": angle});
+    }, 60);
+
+    var containerDiv = document.getElementById("container");
+    containerDiv.addEventListener("mousedown", function() {
+      if (rotationTimer) {
+        clearInterval(rotationTimer);
+        rotationTimer = null;
+      }
+    });
+
+    window.addEventListener("resize", function() {
+      Plotly.Plots.resize("container");
+    });
+  </script>
+</body>
+</html>
