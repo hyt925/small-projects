@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Physicians per 1,000 – Blue Globe with Filter (2022)</title>
+  <title>Physicians per 1,000 – Fly-to Country Blue Globe (2022)</title>
   <style>
     body {
       margin: 0;
@@ -30,6 +30,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      max-width: 280px;
     }
     #countrySelect {
       margin-top: 4px;
@@ -39,10 +40,41 @@
       border: 1px solid rgba(255,255,255,0.3);
       background: rgba(0,0,0,0.7);
       color: #fff;
+      max-width: 100%;
     }
     label {
       font-size: 11px;
       opacity: 0.9;
+    }
+    #controlsRow {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    #toggleRotation {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      cursor: pointer;
+      height: fit-content;
+      margin-top: 14px;
+    }
+    #toggleRotation:hover {
+      background: rgba(255,255,255,0.18);
+    }
+    #valueBox {
+      font-size: 11px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    #valueBox strong {
+      font-size: 11px;
     }
   </style>
 </head>
@@ -50,33 +82,70 @@
   <div id="container"></div>
   <div id="overlay">
     <div><strong>Physicians per 1,000 people (2022)</strong></div>
-    <div>Color: light blue (low) → dark blue (high)</div>
-    <div>
-      <label for="countrySelect">Highlight country:</label><br/>
-      <select id="countrySelect">
-        <option value="__all__">All countries</option>
-      </select>
+    <div>Color scale: light blue (low) → dark blue (high)</div>
+
+    <div id="controlsRow">
+      <div>
+        <label for="countrySelect">Fly to country:</label><br/>
+        <select id="countrySelect">
+          <option value="__all__">— All countries —</option>
+        </select>
+      </div>
+      <button id="toggleRotation">Pause rotation</button>
+    </div>
+
+    <div id="valueBox">
+      <strong>Selected:</strong>
+      <div id="valueCountry">All countries</div>
+      <div>Physicians per 1,000: <span id="valueNumber">–</span></div>
+    </div>
+    <div style="font-size:10px; opacity:0.75;">
+      Tip: you can click and drag the globe to rotate it manually.
     </div>
   </div>
 
+  <!-- Plotly + small geo libs for centroids -->
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://unpkg.com/d3-geo@3/dist/d3-geo.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
 
   <script>
+    // 👇 REPLACE THESE THREE LINES with the ones from your old file
     var locations = ["AFG","ALB","DZA","AGO","ARG","ARM","AUS","AUT","AZE","BHR","BGD","BRB","BLR","BEL","BEN","BOL","BIH","BWA","BRA","BGR","BFA","BDI","KHM","CMR","CAN","CPV","CAF","TCD","CHL","CHN","COL","COM","COG","CRI","CIV","HRV","CUB","CYP","CZE","COD","DNK","DJI","DMA","DOM","ECU","EGY","SLV","GNQ","EST","ETH","FIN","FRA","GAB","GMB","GEO","DEU","GHA","GRC","GTM","GIN","GNB","HTI","HND","HUN","ISL","IND","IDN","IRN","IRQ","IRL","ISR","ITA","JAM","JPN","JOR","KAZ","KEN","KWT","KGZ","LAO","LVA","LBN","LSO","LBR","LBY","LTU","LUX","MDG","MWI","MYS","MLI","MLT","MRT","MUS","MEX","MDA","MNG","MNE","MAR","MOZ","MMR","NAM","NPL","NLD","NZL","NIC","NER","NGA","PRK","NOR","OMN","PAK","PAN","PRY","PER","PHL","POL","PRT","PRI","QAT","ROU","RUS","RWA","LCA","STP","SAU","SEN","SRB","SYC","SLE","SGP","SVK","SVN","ZAF","KOR","ESP","LKA","SWE","CHE","SYR","TJK","TZA","THA","TGO","TTO","TUN","TUR","TKM","UGA","UKR","ARE","GBR","USA","URY","UZB","VEN","VNM","YEM","ZMB","ZWE"];
     var zValues = [0.2782,1.1998,1.7193,0.2146,3.9600,4.4023,3.6778,5.1697,3.4460,0.9257,0.5809,2.4843,5.1905,3.0709,0.0791,1.5901,2.1616,0.3688,2.1499,4.0332,0.0847,0.1001,0.1682,0.0881,2.6102,0.7694,0.0629,0.0434,2.5912,1.9798,2.1848,0.2715,0.1159,2.8939,0.2314,2.9962,8.4218,1.9509,4.1208,0.0740,4.0099,0.2203,1.0825,1.5600,2.0368,0.4521,1.5662,0.4000,4.4833,0.0769,3.8080,3.2672,0.6819,0.1021,7.1201,4.2488,0.1359,5.4789,0.3549,0.0788,0.1274,0.2343,0.3089,3.4075,4.0778,0.8571,0.4269,1.5844,0.7079,3.3125,4.6249,3.9774,1.3061,2.4115,2.3237,3.2522,0.1565,2.5789,1.8760,0.3726,3.1905,2.1038,0.0676,0.0373,2.0905,6.3528,3.0090,0.1812,0.0358,1.5132,0.1286,2.8598,0.1865,2.5331,2.3827,3.2066,2.8592,2.7557,0.7273,0.0838,0.6770,0.4182,0.7486,3.6054,3.5898,0.9775,0.0433,0.3806,3.6745,2.9164,2.0031,0.9801,1.5687,1.3544,1.2700,0.6004,2.3788,5.1240,1.7500,2.4852,2.9807,4.0139,0.1340,0.6409,0.0531,2.6117,0.0691,3.1131,0.9458,0.0250,2.2936,3.4156,3.0861,0.9054,2.3608,3.8723,1.0041,3.9840,4.2957,1.2200,1.7003,0.0140,0.8050,0.0774,4.1675,1.3025,1.8492,2.2247,0.1680,2.9923,2.5278,2.8117,2.6120,5.0499,2.3685,1.9240,0.8199,0.3104,1.1867,0.2096];
     var countryNames = ["Afghanistan","Albania","Algeria","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Benin","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Bulgaria","Burkina Faso","Burundi","Cambodia","Cameroon","Canada","Cape Verde","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo","Costa Rica","Cote d'Ivoire","Croatia","Cuba","Cyprus","Czechia","Democratic Republic of Congo","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Estonia","Ethiopia","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Guatemala","Guinea","Guinea-Bissau","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Mali","Malta","Mauritania","Mauritius","Mexico","Moldova","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","Norway","Oman","Pakistan","Panama","Paraguay","Peru","Philippines","Poland","Portugal","Puerto Rico","Qatar","Romania","Russia","Rwanda","Saint Lucia","Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland","Syria","Tajikistan","Tanzania","Thailand","Togo","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
+    // Mapping from country name -> [lon, lat] centroid
+    var centroidByName = {};
+
+    // Load world map and compute geographic centroids
+    fetch("https://unpkg.com/world-atlas@2.0.2/countries-110m.json")
+      .then(function(r){ return r.json(); })
+      .then(function(world) {
+        var features = topojson.feature(world, world.objects.countries).features;
+        features.forEach(function(f) {
+          var nm = f.properties && f.properties.name;
+          if (!nm) return;
+          var c = d3.geoCentroid(f); // [lon, lat]
+          centroidByName[nm] = c;
+        });
+      })
+      .catch(function(err){
+        console.error("Could not load world centroids:", err);
+      });
 
     var data = [{
       type: "choropleth",
       locationmode: "ISO-3",
       locations: locations,
       z: zValues,
-      text: countryNames.map((n,i)=> n + "<br>" + zValues[i].toFixed(2) + " physicians / 1,000"),
+      text: countryNames.map(function(n,i){
+        return n + "<br>" + zValues[i].toFixed(2) + " physicians / 1,000";
+      }),
       hovertemplate: "%{text}<extra></extra>",
       colorscale: [
-        [0.0, "rgb(198,233,255)"],
-        [0.5, "rgb(100,149,237)"],
-        [1.0, "rgb(0,0,139)"]
+        [0.0, "rgb(198,233,255)"],   // light blue
+        [0.5, "rgb(100,149,237)"],   // cornflower
+        [1.0, "rgb(0,0,139)"]        // dark blue
       ],
       colorbar: { title: "Physicians per 1,000" },
       marker: { line: { color: "rgb(220,220,220)", width: 0.4 } }
@@ -100,13 +169,15 @@
 
     Plotly.newPlot("container", data, layout, {displayModeBar: false, responsive: true});
 
-    // Build dropdown options (unique country names, sorted)
-    var selectEl = document.getElementById("countrySelect");
+    var valueCountry = document.getElementById("valueCountry");
+    var valueNumber  = document.getElementById("valueNumber");
+    var selectEl     = document.getElementById("countrySelect");
+    var toggleBtn    = document.getElementById("toggleRotation");
+
+    // Build dropdown options
     var seen = new Set();
     countryNames.forEach(function(name) {
-      if (!seen.has(name)) {
-        seen.add(name);
-      }
+      if (!seen.has(name)) seen.add(name);
     });
     Array.from(seen).sort().forEach(function(name) {
       var opt = document.createElement("option");
@@ -115,35 +186,113 @@
       selectEl.appendChild(opt);
     });
 
-    // When a country is selected, keep only that country's color; others become transparent
-    selectEl.addEventListener("change", function() {
-      var selected = this.value;
-      var newZ;
-      if (selected === "__all__") {
-        newZ = zValues.slice();
-      } else {
-        newZ = zValues.map(function(v, i) {
-          return countryNames[i] === selected ? v : null;
-        });
+    function updateDisplayForCountry(name) {
+      if (name === "__all__") {
+        valueCountry.textContent = "All countries";
+        valueNumber.textContent  = "–";
+        Plotly.Fx.unhover("container");
+        return;
       }
-      Plotly.restyle("container", {z: [newZ]});
-    });
+      var idx = countryNames.findIndex(function(n){ return n === name; });
+      if (idx === -1) {
+        valueCountry.textContent = name + " (not found)";
+        valueNumber.textContent  = "–";
+        return;
+      }
+      valueCountry.textContent = name;
+      valueNumber.textContent  = zValues[idx].toFixed(2);
+      Plotly.Fx.hover("container", [{ curveNumber: 0, pointNumber: idx }]);
+    }
 
-    // Auto-rotate, but stop when the user drags/clicks
-    var angle = 0;
+    // Track current rotation
+    var currentLon = 0;
+    var currentLat = 0;
+
+    // Auto-rotation
+    var isRotating = true;
     var rotationTimer = setInterval(function() {
-      angle = (angle + 0.4) % 360;
-      Plotly.relayout("container", {"geo.projection.rotation.lon": angle});
+      currentLon = (currentLon + 0.4) % 360;
+      Plotly.relayout("container", {
+        "geo.projection.rotation.lon": currentLon,
+        "geo.projection.rotation.lat": currentLat
+      });
     }, 60);
 
-    var containerDiv = document.getElementById("container");
-    containerDiv.addEventListener("mousedown", function() {
+    toggleBtn.addEventListener("click", function() {
+      if (isRotating) {
+        clearInterval(rotationTimer);
+        rotationTimer = null;
+        isRotating = false;
+        toggleBtn.textContent = "Play rotation";
+      } else {
+        rotationTimer = setInterval(function() {
+          currentLon = (currentLon + 0.4) % 360;
+          Plotly.relayout("container", {
+            "geo.projection.rotation.lon": currentLon,
+            "geo.projection.rotation.lat": currentLat
+          });
+        }, 60);
+        isRotating = true;
+        toggleBtn.textContent = "Pause rotation";
+      }
+    });
+
+    // Smooth fly-to animation using centroids
+    function flyToCountry(name) {
+      if (name === "__all__") {
+        updateDisplayForCountry(name);
+        return;
+      }
+      var centroid = centroidByName[name];
+      updateDisplayForCountry(name);
+
+      if (!centroid) {
+        console.warn("No centroid for", name);
+        return;
+      }
+
+      // d3.geoCentroid gives [lon, lat] on the globe
+      var targetLon = -centroid[0];
+      var targetLat = -centroid[1];
+
+      var steps = 30;
+      var step  = 0;
+      var startLon = currentLon || 0;
+      var startLat = currentLat || 0;
+
+      // Pause auto-rotation during the fly animation
       if (rotationTimer) {
         clearInterval(rotationTimer);
         rotationTimer = null;
+        isRotating = false;
+        toggleBtn.textContent = "Play rotation";
       }
+
+      var flyTimer = setInterval(function() {
+        step += 1;
+        var t = step / steps;
+        if (t > 1) t = 1;
+        var lon = startLon + (targetLon - startLon) * t;
+        var lat = startLat + (targetLat - startLat) * t;
+        currentLon = lon;
+        currentLat = lat;
+        Plotly.relayout("container", {
+          "geo.projection.rotation.lon": lon,
+          "geo.projection.rotation.lat": lat
+        });
+        if (t >= 1) {
+          clearInterval(flyTimer);
+        }
+      }, 25);
+    }
+
+    // Dropdown: fly + update numeric display
+    selectEl.addEventListener("change", function() {
+      var selected = this.value;
+      flyToCountry(selected);
     });
 
+    // Keep it responsive
     window.addEventListener("resize", function() {
       Plotly.Plots.resize("container");
     });
